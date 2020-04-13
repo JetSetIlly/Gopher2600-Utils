@@ -1,4 +1,4 @@
-module gopher2600-audit
+module github.com/jetsetilly/gopher2600-utils/gopher2600-audit
 
 go 1.14
 
