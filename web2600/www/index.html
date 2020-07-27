@@ -27,9 +27,9 @@
 						break;
 					case 'updateCanvas':
 						var canvasCtx = document.getElementById('canvas2600').getContext('2d');
-						var decodedData = new Uint8ClampedArray(e.data.image);
-						var imageData = new ImageData(decodedData, canvasWidth, canvasHeight);
-						canvasCtx.putImageData(imageData, 0, 0);
+						var pixels = new Uint8ClampedArray(e.data.image);
+						var image = new ImageData(pixels, canvasWidth, canvasHeight);
+						canvasCtx.putImageData(image, 0, 0);
 						break;
 					case 'updateCanvasSize':
 						var canvas = document.getElementById('canvas2600')

@@ -1,7 +1,6 @@
 
 if ('function' == typeof importScripts) {
 	importScripts('wasm_exec.js');
-	importScripts('base64js.min.js');
 
 	const go = new Go();
 	WebAssembly.instantiateStreaming(fetch("web2600.wasm"), go.importObject).then((result) => {
@@ -16,10 +15,8 @@ if ('function' == typeof importScripts) {
 		self.postMessage({cmd: 'updateDebug', target: target, value: value});
 	}
 
-	function updateCanvas(encodedImage) {
-		var a = base64js.toByteArray(encodedImage);
-		var decodedImage = new Uint8ClampedArray(a).buffer;
-		self.postMessage({cmd: "updateCanvas", image: decodedImage});
+	function updateCanvas(pixels) {
+		self.postMessage({cmd: "updateCanvas", image: pixels});
 	}
 
 	function updateCanvasSize(width, height) {

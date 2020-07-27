@@ -23,11 +23,9 @@
 package main
 
 import (
-	"encoding/base64"
 	"image"
 	"image/color"
 	"syscall/js"
-	"time"
 
 	"github.com/jetsetilly/gopher2600/television"
 )
@@ -64,7 +62,8 @@ func NewCanvas(worker js.Value) *Canvas {
 	scr.Television.AddPixelRenderer(scr)
 
 	// change tv spec after window creation (so we can set the window size)
-	err = scr.Resize(scr.GetSpec().ScanlineTop, scr.GetSpec().ScanlinesVisible)
+	spec, _ := scr.GetSpec()
+	err = scr.Resize(spec, spec.ScanlineTop, spec.ScanlinesVisible)
 	if err != nil {
 		return nil
 	}
@@ -73,7 +72,7 @@ func NewCanvas(worker js.Value) *Canvas {
 }
 
 // Resize implements telvision.PixelRenderer
-func (scr *Canvas) Resize(topScanline, numScanlines int) error {
+func (scr *Canvas) Resize(_ *television.Specification, topScanline, numScanlines int) error {
 	scr.top = topScanline
 	scr.height = numScanlines * vertScale
 
@@ -90,20 +89,22 @@ func (scr *Canvas) Resize(topScanline, numScanlines int) error {
 }
 
 // NewFrame implements telvision.PixelRenderer
-func (scr *Canvas) NewFrame(frameNum int) error {
+func (scr *Canvas) NewFrame(frameNum int, _ bool) error {
 	scr.worker.Call("updateDebug", "frameNum", frameNum)
-	encodedImage := base64.StdEncoding.EncodeToString(scr.image.Pix)
-	scr.worker.Call("updateCanvas", encodedImage)
+
+	pixels := js.Global().Get("Uint8Array").New(len(scr.image.Pix))
+	js.CopyBytesToJS(pixels, scr.image.Pix)
+	scr.worker.Call("updateCanvas", pixels)
 
 	// give way to messageHandler - there must be a more elegant way of doing this
-	time.Sleep(1 * time.Millisecond)
+	// time.Sleep(25 * time.Millisecond)
 
 	return nil
 }
 
 // NewScanline implements telvision.PixelRenderer
 func (scr *Canvas) NewScanline(scanline int) error {
-	scr.worker.Call("updateDebug", "scanline", scanline)
+	// scr.worker.Call("updateDebug", "scanline", scanline)
 	return nil
 }
 

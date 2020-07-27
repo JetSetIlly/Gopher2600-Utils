@@ -11,5 +11,5 @@ clean:
 release:
 	GOOS=js GOARCH=wasm go build -o ./www/web2600.wasm ./src/
 
-webserve:
+webserve: release
 	@go run ./test
