@@ -24,10 +24,12 @@ package main
 
 import (
 	"image"
-	"image/color"
 	"syscall/js"
+	"time"
 
-	"github.com/jetsetilly/gopher2600/television"
+	"github.com/jetsetilly/gopher2600/hardware/television"
+	"github.com/jetsetilly/gopher2600/hardware/television/signal"
+	"github.com/jetsetilly/gopher2600/hardware/television/specification"
 )
 
 const pixelWidth = 2
@@ -39,46 +41,51 @@ type Canvas struct {
 	// the worker in which our WASM application is running
 	worker js.Value
 
-	television.Television
+	tv   *television.Television
+	spec specification.Spec
+
 	width  int
 	height int
 	top    int
+	bottom int
+
+	frameNum int
 
 	image *image.RGBA
+	done  bool
 }
 
 // NewCanvas is the preferred method of initialisation for the Canvas type
-func NewCanvas(worker js.Value) *Canvas {
+func NewCanvas(worker js.Value) (*Canvas, error) {
 	var err error
 
 	scr := &Canvas{worker: worker}
 
-	scr.Television, err = television.NewTelevision("NTSC")
+	scr.tv, err = television.NewTelevision("NTSC")
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	defer scr.Television.End()
+	defer scr.tv.End()
 
-	scr.Television.AddPixelRenderer(scr)
+	scr.tv.AddPixelRenderer(scr)
 
-	// change tv spec after window creation (so we can set the window size)
-	spec, _ := scr.GetSpec()
-	err = scr.Resize(spec, spec.ScanlineTop, spec.ScanlinesVisible)
-	if err != nil {
-		return nil
-	}
-
-	return scr
+	return scr, nil
 }
 
-// Resize implements telvision.PixelRenderer
-func (scr *Canvas) Resize(_ *television.Specification, topScanline, numScanlines int) error {
+// Resize implements television.PixelRenderer
+func (scr *Canvas) Resize(spec specification.Spec, topScanline, bottomScanline int) error {
+	if scr.done {
+		return nil
+	}
+	scr.done = true
+	scr.spec = spec
 	scr.top = topScanline
-	scr.height = numScanlines * vertScale
+	scr.bottom = bottomScanline
+	scr.height = (bottomScanline - topScanline) * vertScale
 
 	// strictly, only the height will ever change on a specification change but
 	// it's convenient to set the width too
-	scr.width = television.HorizClksVisible * pixelWidth * horizScale
+	scr.width = specification.ClksVisible * pixelWidth * horizScale
 
 	scr.image = image.NewRGBA(image.Rect(0, 0, scr.width, scr.height))
 
@@ -88,47 +95,47 @@ func (scr *Canvas) Resize(_ *television.Specification, topScanline, numScanlines
 	return nil
 }
 
-// NewFrame implements telvision.PixelRenderer
-func (scr *Canvas) NewFrame(frameNum int, _ bool) error {
-	scr.worker.Call("updateDebug", "frameNum", frameNum)
+// NewFrame implements television.PixelRenderer
+func (scr *Canvas) NewFrame(isStable bool) error {
+	scr.frameNum++
+	scr.worker.Call("updateDebug", "frameNum", scr.frameNum)
 
 	pixels := js.Global().Get("Uint8Array").New(len(scr.image.Pix))
 	js.CopyBytesToJS(pixels, scr.image.Pix)
 	scr.worker.Call("updateCanvas", pixels)
 
 	// give way to messageHandler - there must be a more elegant way of doing this
-	// time.Sleep(25 * time.Millisecond)
+	time.Sleep(25 * time.Millisecond)
 
 	return nil
 }
 
-// NewScanline implements telvision.PixelRenderer
+// NewScanline implements television.PixelRenderer
 func (scr *Canvas) NewScanline(scanline int) error {
 	// scr.worker.Call("updateDebug", "scanline", scanline)
 	return nil
 }
 
-// SetPixel implements telvision.PixelRenderer
-func (scr *Canvas) SetPixel(x, y int, red, green, blue byte, vblank bool) error {
-	if vblank {
-		// we could return immediately but if vblank is on inside the visible
-		// area we need to the set pixel to black, in case the vblank was off
-		// in the previous frame (for efficiency, we're not clearing the pixel
-		// array at the end of the frame)
-		red = 0
-		green = 0
-		blue = 0
-	}
+// UpdatingPixels implements television.PixelRenderer
+func (scr *Canvas) UpdatingPixels(_ bool) {
+}
+
+// SetPixel implements television.PixelRenderer
+func (scr *Canvas) SetPixel(sig signal.SignalAttributes, current bool) error {
+	// we could return immediately but if vblank is on inside the visible
+	// area we need to the set pixel to black, in case the vblank was off
+	// in the previous frame (for efficiency, we're not clearing the pixel
+	// array at the end of the frame)
 
 	// adjust pixels so we're only dealing with the visible range
-	x -= television.HorizClksHBlank
-	y -= scr.top
+	x := sig.Clock - specification.ClksHBlank
+	y := sig.Scanline - scr.top
 
 	if x < 0 || y < 0 {
 		return nil
 	}
 
-	rgb := color.RGBA{uint8(red), uint8(green), uint8(blue), uint8(255)}
+	rgb := scr.spec.GetColor(sig.Pixel)
 
 	for h := 0; h < vertScale; h++ {
 		for w := 0; w < horizScale*pixelWidth; w++ {
@@ -142,12 +149,11 @@ func (scr *Canvas) SetPixel(x, y int, red, green, blue byte, vblank bool) error 
 	return nil
 }
 
-// SetAltPixel implements telvision.PixelRenderer
-func (scr *Canvas) SetAltPixel(x, y int, red, green, blue byte, vblank bool) error {
-	return nil
+// Reset implements television.PixelRenderer
+func (scr *Canvas) Reset() {
 }
 
-// EndRendering implements telvision.PixelRenderer
+// EndRendering implements television.PixelRenderer
 func (scr *Canvas) EndRendering() error {
 	return nil
 }

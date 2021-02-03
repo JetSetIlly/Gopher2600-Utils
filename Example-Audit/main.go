@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/jetsetilly/gopher2600/cartridgeloader"
-	"github.com/jetsetilly/gopher2600/errors"
+	"github.com/jetsetilly/gopher2600/curated"
 	"github.com/jetsetilly/gopher2600/hardware"
-	"github.com/jetsetilly/gopher2600/television"
+	"github.com/jetsetilly/gopher2600/hardware/television"
+	"github.com/jetsetilly/gopher2600/hardware/television/signal"
 )
 
 func main() {
@@ -61,13 +62,9 @@ func main() {
 			// load and attach cartridge
 			cartload := cartridgeloader.Loader{Filename: path}
 			if err := vcs.AttachCartridge(cartload); err != nil {
-
-				// ignore known cartridge errors
-				if errors.Is(err, errors.CartridgeError) {
+				if curated.Is(err, "cartridge: %v") {
 					return nil
 				}
-
-				// any other errors are probably serious
 				return err
 			}
 
@@ -76,26 +73,20 @@ func main() {
 				return err
 			}
 
-			// run for 10 frames
-			err = vcs.Run(func() (bool, error) {
-				fr, _ := tv.GetState(television.ReqFramenum)
+			// run for 60 frames
+			err = vcs.Run(func() error {
+				fr := tv.GetState(signal.ReqFramenum)
 
 				if fr > 60 {
-					return false, nil
+					return curated.Errorf("timed out")
 				}
 
-				return true, nil
+				return nil
 			})
 
 			// collect any errors
 			errmsg := ""
-			if err != nil {
-
-				// except any non Gopher2600 specific errors
-				if !errors.IsAny(err) {
-					return err
-				}
-
+			if err != nil && !curated.Is(err, "timed out") {
 				errmsg = err.Error()
 			}
 
@@ -107,7 +98,7 @@ func main() {
 
 			// print table row
 			fmt.Printf("%30s | %6s | %4s | %5v | %v\n", name,
-				vcs.Mem.Cart.Format(),
+				vcs.Mem.Cart.ID(),
 				tv.GetSpec().ID,
 				mix.active,
 				errmsg)
@@ -133,4 +124,7 @@ func (mix *myAudioMixer) SetAudio(data uint8) error {
 func (mix *myAudioMixer) EndMixing() error {
 	mix.active = false
 	return nil
+}
+
+func (mix *myAudioMixer) Reset() {
 }

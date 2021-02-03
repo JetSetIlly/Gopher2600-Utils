@@ -27,17 +27,22 @@ import (
 
 	"github.com/jetsetilly/gopher2600/cartridgeloader"
 	"github.com/jetsetilly/gopher2600/hardware"
-	"github.com/jetsetilly/gopher2600/hardware/riot/input"
+	"github.com/jetsetilly/gopher2600/hardware/riot/ports"
 )
 
 func main() {
 	worker := js.Global().Get("self")
-	scr := NewCanvas(worker)
+	scr, err := NewCanvas(worker)
+	if err != nil {
+		scr.worker.Call("log", err.Error())
+		return
+	}
 
 	// create new vcs
-	vcs, err := hardware.NewVCS(scr)
+	vcs, err := hardware.NewVCS(scr.tv)
 	if err != nil {
-		panic(err)
+		scr.worker.Call("log", err.Error())
+		return
 	}
 
 	// load cartridge
@@ -47,7 +52,8 @@ func main() {
 
 	err = vcs.AttachCartridge(cartload)
 	if err != nil {
-		panic(err)
+		scr.worker.Call("log", err.Error())
+		return
 	}
 
 	// add message handler - implements controllers
@@ -60,29 +66,29 @@ func main() {
 			key := data.Get("key").Int()
 			switch key {
 			case 37: // left
-				err = vcs.HandController0.Handle(input.Left, true)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Left, true)
 			case 39: // right
-				err = vcs.HandController0.Handle(input.Right, true)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Right, true)
 			case 38: // up
-				err = vcs.HandController0.Handle(input.Up, true)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Up, true)
 			case 40: // down
-				err = vcs.HandController0.Handle(input.Down, true)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Down, true)
 			case 32: // space
-				err = vcs.HandController0.Handle(input.Fire, true)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Fire, true)
 			}
 		case "keyUp":
 			key := data.Get("key").Int()
 			switch key {
 			case 37: // left
-				err = vcs.HandController0.Handle(input.Left, false)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Left, false)
 			case 39: // right
-				err = vcs.HandController0.Handle(input.Right, false)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Right, false)
 			case 38: // up
-				err = vcs.HandController0.Handle(input.Up, false)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Up, false)
 			case 40: // down
-				err = vcs.HandController0.Handle(input.Down, false)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Down, false)
 			case 32: // space
-				err = vcs.HandController0.Handle(input.Fire, false)
+				err = vcs.RIOT.Ports.HandleEvent(ports.Player0ID, ports.Fire, false)
 			}
 		default:
 			js.Global().Get("self").Call("log", args[0].String())
@@ -101,7 +107,7 @@ func main() {
 	worker.Call("addEventListener", "message", messageHandler, false)
 
 	// run emulation
-	vcs.Run(func() (bool, error) {
-		return true, nil
+	vcs.Run(func() error {
+		return nil
 	})
 }
