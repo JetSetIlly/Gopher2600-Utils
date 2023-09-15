@@ -1,0 +1,5 @@
+Session.vim
+.gopher2600
+*.swp
+*.profile
+**/go.work
