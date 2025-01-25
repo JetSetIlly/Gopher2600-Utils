@@ -26,6 +26,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/jetsetilly/gopher2600/cartridgeloader"
+	"github.com/jetsetilly/gopher2600/environment"
 	"github.com/jetsetilly/gopher2600/hardware"
 	"github.com/jetsetilly/gopher2600/hardware/television"
 	"github.com/jetsetilly/gopher2600/hardware/television/signal"
@@ -70,7 +71,7 @@ func runEmulator() *emulator {
 	}
 	em.tv.SetFPSCap(false)
 
-	em.vcs, err = hardware.NewVCS(em.tv, nil)
+	em.vcs, err = hardware.NewVCS(environment.MainEmulation, em.tv, nil, nil)
 	if err != nil {
 		println(err.Error())
 		return nil
@@ -86,7 +87,7 @@ func runEmulator() *emulator {
 		return nil
 	}
 
-	loader, err := cartridgeloader.NewLoaderFromEmbed(example_title, example_bin, "AUTO")
+	loader, err := cartridgeloader.NewLoaderFromData(example_title, example_bin, "AUTO", "AUTO", nil)
 	if err != nil {
 		println(err.Error())
 		return nil
@@ -151,7 +152,7 @@ func (em *emulator) NewFrame(_ television.FrameInfo) error {
 	em.frameNum++
 	if em.frameNum%60 == 0 {
 		fps, hz := em.tv.GetActualFPS()
-		fmt.Printf("Ebiten: %.1ffps   Emulator: %.1ffps (%.1fHz)\n", ebiten.CurrentFPS(), fps, hz)
+		fmt.Printf("Ebiten: %.1ffps   Emulator: %.1ffps (%.1fHz)\n", ebiten.ActualFPS(), fps, hz)
 	}
 
 	return nil
@@ -169,9 +170,8 @@ func (em *emulator) SetPixels(sig []signal.SignalAttributes, last int) error {
 
 	i := 0
 	for _, s := range sig {
-		idx := int(s&signal.Index) >> signal.IndexShift
-		sl := idx / specification.ClksScanline
-		cl := idx % specification.ClksScanline
+		sl := s.Index / specification.ClksScanline
+		cl := s.Index % specification.ClksScanline
 		x := cl - specification.ClksHBlank
 		y := sl - em.top
 
@@ -179,8 +179,7 @@ func (em *emulator) SetPixels(sig []signal.SignalAttributes, last int) error {
 			continue
 		}
 
-		px := signal.ColorSignal((s & signal.Color) >> signal.ColorShift)
-		rgb := em.spec.GetColor(px)
+		rgb := em.spec.GetColor(s.Color)
 
 		// skip alpha channel - it never changes
 		s := em.pixels[i : i+3 : i+3]
@@ -250,7 +249,7 @@ func profile(runFunc func()) {
 func run() {
 	ebiten.SetWindowTitle("Gopher2600")
 	ebiten.SetVsyncEnabled(true)
-	ebiten.SetWindowResizable(true)
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	if err := ebiten.RunGame(runEmulator()); err != nil {
 		log.Fatal(err)
 	}
