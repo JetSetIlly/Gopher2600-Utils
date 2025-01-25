@@ -3,3 +3,4 @@ Session.vim
 *.swp
 *.profile
 **/go.work
+**/go.work.sum
