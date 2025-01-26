@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -17,30 +18,27 @@ import (
 	"github.com/jetsetilly/gopher2600/hardware/television"
 )
 
-func clearLine() {
-	fmt.Print("\r\033[2K")
+type audit struct {
+	// command line options
+	recurse bool
+
+	// keep track of which roms have been audited. prevents reporting on
+	// duplicate ROM files. key values are MD5 sums of cartridge data
+	completed map[string][]string
 }
 
-func main() {
-	// we don't want date/time in log entries
-	log.SetFlags(0)
-
-	if len(os.Args) != 2 {
-		log.Fatalf("usage: %s <path to ROMs>\n", os.Args[0])
-	}
-	pth := filepath.Clean(os.Args[1])
-
+func (aud *audit) run(pth string) error {
 	// check path to roms argument
 	f, err := os.Open(pth)
 	defer f.Close()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// new television with auto-selecting tv protocl
 	tv, err := television.NewTelevision("AUTO")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tv.End()
 	tv.SetFPSCap(false)
@@ -48,15 +46,11 @@ func main() {
 	// new VCS
 	vcs, err := hardware.NewVCS(environment.MainEmulation, tv, nil, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	// keep track of which roms have been audited. prevents reporting on
-	// duplicate ROM files. key values are MD5 sums of cartridge data
-	isAudited := make(map[string][]string)
-
-	// message indicating the audit has succeeded
-	const OkayMsg = "OK"
+	var afs archivefs.Path
+	defer afs.Close()
 
 	auditResult := func(loader cartridgeloader.Loader, msg string) {
 		// cropped filename
@@ -64,15 +58,18 @@ func main() {
 		fn, _ = strings.CutPrefix(fn, pth)
 		fn, _ = strings.CutPrefix(fn, string(os.PathSeparator))
 
-		// print message
-		clearLine()
-		fmt.Print(fn)
-		if msg != OkayMsg {
-			fmt.Printf("\n*** %s\n", msg)
+		const filenameColumnWidth = 48
+
+		if len(fn) > filenameColumnWidth {
+			fn = fn[len(fn)-filenameColumnWidth:]
 		}
+		fn = fmt.Sprintf("%s%s", fn, strings.Repeat(" ", filenameColumnWidth-len(fn)))
+
+		// print message
+		fmt.Printf("%s\t%s\n", fn, msg)
 
 		// note that the ROM has been audited
-		isAudited[loader.HashMD5] = append(isAudited[loader.HashMD5], loader.Name)
+		aud.completed[loader.HashMD5] = append(aud.completed[loader.HashMD5], loader.Name)
 	}
 
 	// auditing process
@@ -82,7 +79,7 @@ func main() {
 			return err
 		}
 
-		if _, ok := isAudited[loader.HashMD5]; !ok {
+		if _, ok := aud.completed[loader.HashMD5]; !ok {
 			vcs.Mem.Cart.Reset()
 
 			audit.Initialise(vcs)
@@ -95,9 +92,16 @@ func main() {
 			})
 
 			if errors.Is(err, auditors.CheckEnded) {
-				err = audit.Finalise()
+				var msg strings.Builder
+				err = audit.Finalise(&msg)
 				if errors.Is(err, auditors.FinalisedOk) {
-					auditResult(loader, OkayMsg)
+					var s string
+					if msg.Len() == 0 {
+						s = "okay"
+					} else {
+						s = msg.String()
+					}
+					auditResult(loader, s)
 				} else {
 					auditResult(loader, err.Error())
 				}
@@ -110,15 +114,18 @@ func main() {
 		return nil
 	}
 
-	var afs archivefs.Path
-	defer afs.Close()
+	var walkf func(pth string, depth int) error
+	walkf = func(pth string, depth int) error {
+		// prevent recursion unless it's been activated
+		if !aud.recurse && depth > 1 {
+			return nil
+		}
 
-	var walkf func(pth string) error
-	walkf = func(pth string) error {
 		err := afs.Set(pth, false)
 		if err != nil {
 			return err
 		}
+
 		if !afs.IsDir() {
 			r, n, err := afs.Open()
 			if err != nil {
@@ -136,7 +143,7 @@ func main() {
 				return err
 			}
 
-			audit := auditors.HighHue{}
+			audit := auditors.COLUxxCount{}
 			_ = auditf(loader, &audit)
 			return nil
 		}
@@ -147,7 +154,7 @@ func main() {
 		}
 
 		for _, l := range lst {
-			err = walkf(filepath.Join(pth, l.Name))
+			err = walkf(filepath.Join(pth, l.Name), depth+1)
 			if err != nil {
 				return err
 			}
@@ -155,12 +162,38 @@ func main() {
 
 		return nil
 	}
-	err = walkf(os.Args[1])
+
+	return walkf(pth, 0)
+}
+
+func main() {
+	// we don't want date/time in log entries
+	log.SetFlags(0)
+
+	aud := &audit{
+		completed: make(map[string][]string),
+	}
+
+	// use flag set to provide the --help flag for top level command line.
+	// that's all we want it to do
+	flgs := flag.NewFlagSet("Gopher2600-Audit", flag.ExitOnError)
+
+	// command line options
+	flgs.BoolVar(&aud.recurse, "r", false, "recurse into directories")
+
+	// parse command line
+	args := os.Args[1:]
+	err := flgs.Parse(args)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err != nil {
-		log.Fatal(err)
+	// treat all remainnig arguments as paths
+	for _, pth := range flgs.Args() {
+		pth = filepath.Clean(pth)
+		err := aud.run(pth)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }

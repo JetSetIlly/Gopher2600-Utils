@@ -2,6 +2,7 @@ package auditors
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jetsetilly/gopher2600/hardware"
 )
@@ -9,10 +10,14 @@ import (
 type Audit interface {
 	Initialise(vcs *hardware.VCS) error
 	Check() error
-	Finalise() error
+	Finalise(msg *strings.Builder) error
 }
 
+// sentinal errors
 var (
-	CheckEnded  = fmt.Errorf("check ended")
+	// returned by Check() function
+	CheckEnded = fmt.Errorf("check ended")
+
+	// returned by Finalise() function
 	FinalisedOk = fmt.Errorf("finalised okay")
 )

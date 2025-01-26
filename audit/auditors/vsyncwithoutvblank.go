@@ -2,6 +2,7 @@ package auditors
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jetsetilly/gopher2600/hardware"
 	"github.com/jetsetilly/gopher2600/hardware/television"
@@ -36,7 +37,7 @@ func (audit *VsyncWithoutVblank) Check() error {
 }
 
 // Finalise implements the Audit interface
-func (audit *VsyncWithoutVblank) Finalise() error {
+func (audit *VsyncWithoutVblank) Finalise(_ *strings.Builder) error {
 	if !audit.usesVBLANK {
 		return fmt.Errorf("ROM uses VSYNC without VBLANK")
 	}

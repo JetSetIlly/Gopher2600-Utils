@@ -1,8 +1,8 @@
 module github.com/jetsetilly/gopher2600-utils/audit
 
-go 1.21
+go 1.23.0
 
-require github.com/jetsetilly/gopher2600 v0.34.0
+require github.com/jetsetilly/gopher2600 v0.40.0-preview
 
 require (
 	github.com/go-audio/audio v1.0.0 // indirect

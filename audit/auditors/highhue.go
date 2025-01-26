@@ -2,6 +2,7 @@ package auditors
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jetsetilly/gopher2600/hardware"
 	"github.com/jetsetilly/gopher2600/hardware/television"
@@ -30,7 +31,7 @@ func (audit *HighHue) Check() error {
 }
 
 // Finalise implements the Audit interface
-func (audit *HighHue) Finalise() error {
+func (audit *HighHue) Finalise(_ *strings.Builder) error {
 	if audit.usesHighHue {
 		return fmt.Errorf("ROM uses colour-lum value of $Ex or $Fx")
 	}

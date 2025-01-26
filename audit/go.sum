@@ -21,6 +21,12 @@ github.com/jetsetilly/gopher2600 v0.24.2 h1:lk2tp5bv+95O0Cn0Bkdo7ZfxIbmjwV9nv34J
 github.com/jetsetilly/gopher2600 v0.24.2/go.mod h1:gSkFLhHnBeOMNeEGkuMaYYeFSGrd/AiZUN/OtZuO164=
 github.com/jetsetilly/gopher2600 v0.25.0 h1:bDUFMJdsVGcYdnJbQZLGB7vThmgd/S50gAcjMSz4rEI=
 github.com/jetsetilly/gopher2600 v0.25.0/go.mod h1:gSkFLhHnBeOMNeEGkuMaYYeFSGrd/AiZUN/OtZuO164=
+github.com/jetsetilly/gopher2600 v0.34.0 h1:jNdLze0GfspMMo+UTGa0+yP5fRkw2S4JnvXfr3WTlLU=
+github.com/jetsetilly/gopher2600 v0.34.0/go.mod h1:3H1fPL2K45GfDqV/w+sbfnnxWBf+vZUV8PGzI5ilgNs=
+github.com/jetsetilly/gopher2600 v0.35.3 h1:m4szhJz1GZL0XKfNa9vxiTCxoxVgIFl0Mjx4Q69YxGc=
+github.com/jetsetilly/gopher2600 v0.35.3/go.mod h1:3H1fPL2K45GfDqV/w+sbfnnxWBf+vZUV8PGzI5ilgNs=
+github.com/jetsetilly/gopher2600 v0.40.0-preview h1:I2EL/8epvh1Ia4z9f3pijjeflOnF+7Ex44OX/52x+7E=
+github.com/jetsetilly/gopher2600 v0.40.0-preview/go.mod h1:3H1fPL2K45GfDqV/w+sbfnnxWBf+vZUV8PGzI5ilgNs=
 github.com/pkg/term v1.1.0/go.mod h1:E25nymQcrSllhX42Ok8MRm1+hyBdHY0dCeiKZ9jpNGw=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
