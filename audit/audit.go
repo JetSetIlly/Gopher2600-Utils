@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/jetsetilly/gopher2600-utils/audit/auditors"
@@ -20,7 +21,8 @@ import (
 
 type audit struct {
 	// command line options
-	recurse bool
+	recurse    bool
+	concurrent bool
 
 	// keep track of which roms have been audited. prevents reporting on
 	// duplicate ROM files. key values are MD5 sums of cartridge data
@@ -31,20 +33,6 @@ func (aud *audit) run(pth string) error {
 	// check path to roms argument
 	f, err := os.Open(pth)
 	defer f.Close()
-	if err != nil {
-		return err
-	}
-
-	// new television with auto-selecting tv protocl
-	tv, err := television.NewTelevision("AUTO")
-	if err != nil {
-		return err
-	}
-	defer tv.End()
-	tv.SetFPSCap(false)
-
-	// new VCS
-	vcs, err := hardware.NewVCS(environment.MainEmulation, tv, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -74,7 +62,21 @@ func (aud *audit) run(pth string) error {
 
 	// auditing process
 	auditf := func(loader cartridgeloader.Loader, audit auditors.Audit) error {
-		err := vcs.AttachCartridge(loader, true)
+		// new television with auto-selecting tv protocl
+		tv, err := television.NewTelevision("AUTO")
+		if err != nil {
+			return err
+		}
+		defer tv.End()
+		tv.SetFPSCap(false)
+
+		// new VCS
+		vcs, err := hardware.NewVCS(environment.MainEmulation, tv, nil, nil)
+		if err != nil {
+			return err
+		}
+
+		err = vcs.AttachCartridge(loader, true)
 		if err != nil {
 			return err
 		}
@@ -114,6 +116,13 @@ func (aud *audit) run(pth string) error {
 		return nil
 	}
 
+	var slots chan bool
+	if aud.concurrent {
+		slots = make(chan bool, runtime.NumCPU())
+	} else {
+		slots = make(chan bool, 1)
+	}
+
 	var walkf func(pth string, depth int) error
 	walkf = func(pth string, depth int) error {
 		// prevent recursion unless it's been activated
@@ -143,8 +152,12 @@ func (aud *audit) run(pth string) error {
 				return err
 			}
 
+			slots <- true
 			audit := auditors.COLUxxCount{}
-			_ = auditf(loader, &audit)
+			go func() {
+				auditf(loader, &audit)
+				<-slots
+			}()
 			return nil
 		}
 
@@ -180,6 +193,7 @@ func main() {
 
 	// command line options
 	flgs.BoolVar(&aud.recurse, "r", false, "recurse into directories")
+	flgs.BoolVar(&aud.concurrent, "c", false, fmt.Sprintf("run audits concurrently (max: %d)", runtime.NumCPU()))
 
 	// parse command line
 	args := os.Args[1:]
