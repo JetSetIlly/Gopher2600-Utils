@@ -18,6 +18,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"image/color"
 	"log"
 	"os"
 	"runtime"
@@ -179,7 +180,15 @@ func (em *emulator) SetPixels(sig []signal.SignalAttributes, last int) error {
 			continue
 		}
 
-		rgb := em.spec.GetColor(s.Color)
+		var rgb color.RGBA
+
+		// handle VBLANK by setting pixels to black. we also manually handle
+		// NoSignal in the same way
+		if s.VBlank || s.Index == signal.NoSignal {
+			rgb = em.spec.GetColor(signal.VideoBlack)
+		} else {
+			rgb = em.spec.GetColor(s.Color)
+		}
 
 		// skip alpha channel - it never changes
 		s := em.pixels[i : i+3 : i+3]

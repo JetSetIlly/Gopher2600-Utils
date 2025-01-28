@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/hajimehoshi/ebiten/v2 v2.7.9
-	github.com/jetsetilly/gopher2600 v0.34.0
+	github.com/jetsetilly/gopher2600 v0.40.0-preview
 )
 
 require (

@@ -38,6 +38,8 @@ github.com/jetsetilly/gopher2600 v0.25.0 h1:bDUFMJdsVGcYdnJbQZLGB7vThmgd/S50gAcj
 github.com/jetsetilly/gopher2600 v0.25.0/go.mod h1:gSkFLhHnBeOMNeEGkuMaYYeFSGrd/AiZUN/OtZuO164=
 github.com/jetsetilly/gopher2600 v0.34.0 h1:jNdLze0GfspMMo+UTGa0+yP5fRkw2S4JnvXfr3WTlLU=
 github.com/jetsetilly/gopher2600 v0.34.0/go.mod h1:3H1fPL2K45GfDqV/w+sbfnnxWBf+vZUV8PGzI5ilgNs=
+github.com/jetsetilly/gopher2600 v0.40.0-preview h1:I2EL/8epvh1Ia4z9f3pijjeflOnF+7Ex44OX/52x+7E=
+github.com/jetsetilly/gopher2600 v0.40.0-preview/go.mod h1:3H1fPL2K45GfDqV/w+sbfnnxWBf+vZUV8PGzI5ilgNs=
 github.com/jezek/xgb v1.1.0 h1:wnpxJzP1+rkbGclEkmwpVFQWpuE2PUGNUzP8SbfFobk=
 github.com/jezek/xgb v1.1.0/go.mod h1:nrhwO0FX/enq75I7Y7G8iN1ubpSGZEiA3v9e9GyRFlk=
 github.com/jezek/xgb v1.1.1 h1:bE/r8ZZtSv7l9gk6nU0mYx51aXrvnyb44892TwSaqS4=
