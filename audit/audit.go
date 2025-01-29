@@ -23,6 +23,7 @@ type audit struct {
 	// command line options
 	recurse    bool
 	concurrent bool
+	auditor    string
 
 	// keep track of which roms have been audited. prevents reporting on
 	// duplicate ROM files. key values are MD5 sums of cartridge data
@@ -116,6 +117,7 @@ func (aud *audit) run(pth string) error {
 		return nil
 	}
 
+	// number of emulation slots depending on concurrency argument
 	var slots chan bool
 	if aud.concurrent {
 		slots = make(chan bool, runtime.NumCPU())
@@ -152,10 +154,13 @@ func (aud *audit) run(pth string) error {
 				return err
 			}
 
+			// create new auditor instance. validity of auditor id should have
+			// been checked already
+			audit := auditors.Factory[aud.auditor]()
+
 			slots <- true
-			audit := auditors.COLUxxCount{}
 			go func() {
-				auditf(loader, &audit)
+				auditf(loader, audit)
 				<-slots
 			}()
 			return nil
@@ -187,22 +192,38 @@ func main() {
 		completed: make(map[string][]string),
 	}
 
-	// use flag set to provide the --help flag for top level command line.
-	// that's all we want it to do
-	flgs := flag.NewFlagSet("Gopher2600-Audit", flag.ExitOnError)
-
 	// command line options
+	flgs := flag.NewFlagSet("Gopher2600-Audit", flag.ContinueOnError)
+
 	flgs.BoolVar(&aud.recurse, "r", false, "recurse into directories")
 	flgs.BoolVar(&aud.concurrent, "c", false, fmt.Sprintf("run audits concurrently (max: %d)", runtime.NumCPU()))
+	flgs.StringVar(&aud.auditor, "a", auditors.Factory[auditors.DefaultAuditor]().ID(), "which auditor to run")
 
 	// parse command line
 	args := os.Args[1:]
 	err := flgs.Parse(args)
 	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			fmt.Print("\nAuditors: ")
+			for key, aud := range auditors.Factory {
+				if key != auditors.DefaultAuditor {
+					fmt.Print(aud().ID(), " ")
+				}
+			}
+			fmt.Println("")
+			return
+		}
 		log.Fatal(err)
 	}
 
-	// treat all remainnig arguments as paths
+	// check that selected auditor is valid
+	n := auditors.NormaliseID(aud.auditor)
+	if _, ok := auditors.Factory[n]; !ok {
+		log.Fatalf("*** invalid auditor: %s", aud.auditor)
+	}
+	aud.auditor = n
+
+	// treat all remaining arguments as paths
 	for _, pth := range flgs.Args() {
 		pth = filepath.Clean(pth)
 		err := aud.run(pth)

@@ -8,21 +8,26 @@ import (
 	"github.com/jetsetilly/gopher2600/hardware/television"
 )
 
-type VsyncWithoutVblank struct {
+type vsyncWithoutVblank struct {
 	vcs        *hardware.VCS
 	frameCt    int
 	usesVBLANK bool
 }
 
+// ID implements the Audit interface
+func (audit *vsyncWithoutVblank) ID() string {
+	return "VsyncWithoutVblank"
+}
+
 // Initialise implements the Audit interface
-func (audit *VsyncWithoutVblank) Initialise(vcs *hardware.VCS) error {
+func (audit *vsyncWithoutVblank) Initialise(vcs *hardware.VCS) error {
 	audit.vcs = vcs
 	audit.vcs.TV.AddFrameTrigger(audit)
 	return nil
 }
 
 // Check implements the Audit interface
-func (audit *VsyncWithoutVblank) Check() error {
+func (audit *vsyncWithoutVblank) Check() error {
 	if audit.frameCt > 60 {
 		return CheckEnded
 	}
@@ -37,7 +42,7 @@ func (audit *VsyncWithoutVblank) Check() error {
 }
 
 // Finalise implements the Audit interface
-func (audit *VsyncWithoutVblank) Finalise(_ *strings.Builder) error {
+func (audit *vsyncWithoutVblank) Finalise(_ *strings.Builder) error {
 	if !audit.usesVBLANK {
 		return fmt.Errorf("ROM uses VSYNC without VBLANK")
 	}
@@ -45,7 +50,7 @@ func (audit *VsyncWithoutVblank) Finalise(_ *strings.Builder) error {
 }
 
 // NewFrame implements the television.FrameTrigger() interface
-func (audit *VsyncWithoutVblank) NewFrame(frameInfo television.FrameInfo) error {
+func (audit *vsyncWithoutVblank) NewFrame(frameInfo television.FrameInfo) error {
 	audit.frameCt++
 	return nil
 }

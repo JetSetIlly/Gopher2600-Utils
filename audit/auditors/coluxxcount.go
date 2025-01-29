@@ -9,22 +9,27 @@ import (
 	"github.com/jetsetilly/gopher2600/hardware/television"
 )
 
-type COLUxxCount struct {
+type coluxxCount struct {
 	vcs     *hardware.VCS
 	frameCt int
 
 	colourCounts [2][128]int
 }
 
+// ID implements the Audit interface
+func (audit *coluxxCount) ID() string {
+	return "COLUxxCount"
+}
+
 // Initialise implements the Audit interface
-func (audit *COLUxxCount) Initialise(vcs *hardware.VCS) error {
+func (audit *coluxxCount) Initialise(vcs *hardware.VCS) error {
 	audit.vcs = vcs
 	audit.vcs.TV.AddFrameTrigger(audit)
 	return nil
 }
 
 // Check implements the Audit interface
-func (audit *COLUxxCount) Check() error {
+func (audit *coluxxCount) Check() error {
 	if audit.frameCt > 60 {
 		return CheckEnded
 	}
@@ -50,7 +55,7 @@ func (audit *COLUxxCount) Check() error {
 }
 
 // Finalise implements the Audit interface
-func (audit *COLUxxCount) Finalise(msg *strings.Builder) error {
+func (audit *coluxxCount) Finalise(msg *strings.Builder) error {
 	var summary [2]int
 
 	// count number of buckets that have something in them
@@ -69,7 +74,7 @@ func (audit *COLUxxCount) Finalise(msg *strings.Builder) error {
 }
 
 // NewFrame implements the television.FrameTrigger() interface
-func (audit *COLUxxCount) NewFrame(frameInfo television.FrameInfo) error {
+func (audit *coluxxCount) NewFrame(frameInfo television.FrameInfo) error {
 	audit.frameCt++
 	return nil
 }
