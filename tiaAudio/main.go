@@ -142,6 +142,7 @@ func playSample(this js.Value, args []js.Value) interface{} {
 func main() {
 	js.Global().Set("initialiseWithExampleJSON", js.FuncOf(initialiseWithExampleJSON))
 	js.Global().Set("updateSamples", js.FuncOf(updateSamples))
+	js.Global().Set("playSample", js.FuncOf(playSample))
 
 	select {}
 }
