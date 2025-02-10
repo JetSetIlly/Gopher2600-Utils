@@ -28,8 +28,10 @@ type tonesJson struct {
 
 type soundEffects struct {
 	gameName   string
-	sampleRate int
-	data       [][]byte
+	sampleRate float32
+	channels   int
+	size       int
+	data       map[string][]uint
 }
 
 func parseJson(jsonFile []byte) (soundEffects, error) {
@@ -42,14 +44,17 @@ func parseJson(jsonFile []byte) (soundEffects, error) {
 
 	sfx := soundEffects{
 		gameName:   jsn.Name,
-		sampleRate: int(specification.SpecNTSC.HorizontalScanRate * audio.SamplesPerScanline),
+		channels:   2,
+		size:       2,
+		sampleRate: specification.SpecNTSC.HorizontalScanRate * audio.SamplesPerScanline,
+		data:       make(map[string][]uint),
 	}
 
 	var tia *audio.Audio
 	tia = audio.NewAudio(nil)
 
 	for _, sound := range jsn.SoundEffects {
-		var data []byte
+		var data []uint
 
 		for _, tone := range sound.Tones {
 			tia.ReadMemRegisters(chipbus.ChangedRegister{
@@ -70,17 +75,15 @@ func parseJson(jsonFile []byte) (soundEffects, error) {
 				if clk%3 == 0 && tia.Step() {
 					m := mix.Mono(tia.Vol0, tia.Vol1)
 
-					// sample is 16bits and added once for each stereo channel
-					data = append(data, uint8(m))
-					data = append(data, uint8(m>>8))
-					data = append(data, uint8(m))
-					data = append(data, uint8(m>>8))
+					for range sfx.channels {
+						data = append(data, uint(m))
+					}
 				}
 			}
 
 		}
 
-		sfx.data = append(sfx.data, data)
+		sfx.data[sound.Name] = data
 	}
 
 	return sfx, nil

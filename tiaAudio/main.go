@@ -3,89 +3,114 @@ package main
 import (
 	_ "embed"
 	"log"
-
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"maps"
+	"slices"
+	"syscall/js"
 )
 
 //go:embed "aliens2600-sounds.json"
 var aliensExample []byte
 
-type emulator struct {
-	audio *audio.Context
-	sfx   soundEffects
+// results of parsing
+var sfx soundEffects
+
+func initialise(this js.Value, args []js.Value) interface{} {
+	textarea := js.Global().Get("document").Call("getElementById", "json")
+	if textarea.IsNull() || textarea.IsUndefined() {
+		return nil
+	}
+	textarea.Set("value", string(aliensExample))
+
+	updateSamples(this, args)
+	return nil
 }
 
-func newEmulator() (*emulator, error) {
-	var em emulator
+func updateSamples(this js.Value, args []js.Value) interface{} {
+	textarea := js.Global().Get("document").Call("getElementById", "json")
+	if textarea.IsNull() || textarea.IsUndefined() {
+		return nil
+	}
+
+	content := textarea.Get("value").String()
 
 	var err error
-	em.sfx, err = parseJson(aliensExample)
+	sfx, err = parseJson([]byte(content))
 	if err != nil {
-		return nil, err
-	}
-
-	em.audio = audio.NewContext(em.sfx.sampleRate)
-
-	return &em, nil
-}
-
-func (em *emulator) Update() error {
-	var key int
-
-	if inpututil.IsKeyJustPressed(ebiten.Key1) {
-		key = 0
-	} else if inpututil.IsKeyJustPressed(ebiten.Key2) {
-		key = 1
-	} else if inpututil.IsKeyJustPressed(ebiten.Key3) {
-		key = 2
-	} else if inpututil.IsKeyJustPressed(ebiten.Key4) {
-		key = 3
-	} else if inpututil.IsKeyJustPressed(ebiten.Key5) {
-		key = 4
-	} else if inpututil.IsKeyJustPressed(ebiten.Key6) {
-		key = 5
-	} else if inpututil.IsKeyJustPressed(ebiten.Key7) {
-		key = 6
-	} else if inpututil.IsKeyJustPressed(ebiten.Key8) {
-		key = 7
-	} else if inpututil.IsKeyJustPressed(ebiten.Key9) {
-		key = 8
-	} else {
+		log.Printf(err.Error())
+		addError(err)
 		return nil
 	}
 
-	if key >= len(em.sfx.data) {
-		return nil
-	}
-
-	if em.audio.IsReady() {
-		ply := em.audio.NewPlayerFromBytes(em.sfx.data[key])
-		ply.Play()
-	}
+	log.Printf("name of game: %s", sfx.gameName)
+	log.Printf("number of samples: %d", len(sfx.data))
+	addButtons()
 
 	return nil
 }
 
-func (em *emulator) Draw(screen *ebiten.Image) {
+func addError(err error) {
+	contentDiv := js.Global().Get("document").Call("getElementById", "playback")
+	if contentDiv.IsNull() || contentDiv.IsUndefined() {
+		return
+	}
+	contentDiv.Set("innerHTML", err.Error())
 }
 
-func (em *emulator) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 10, 10
+func addButtons() {
+	contentDiv := js.Global().Get("document").Call("getElementById", "playback")
+	if contentDiv.IsNull() || contentDiv.IsUndefined() {
+		return
+	}
+	contentDiv.Set("innerHTML", "")
+
+	keys := slices.Collect(maps.Keys(sfx.data))
+	slices.Sort(keys)
+	for _, name := range keys {
+		button := js.Global().Get("document").Call("createElement", "button")
+		button.Set("innerHTML", name) // Set the button's text
+
+		button.Call("addEventListener", "click", js.FuncOf(func(this js.Value, p []js.Value) interface{} {
+			playSample(name)
+			return nil
+		}))
+
+		contentDiv.Call("appendChild", button)
+	}
+}
+
+func playSample(name string) {
+	sample := sfx.data[name]
+	log.Printf("playing %s at %.2fHz for %d frames", name, sfx.sampleRate, len(sample))
+
+	// Get the Web Audio API context
+	audioContext := js.Global().Get("AudioContext").New()
+
+	audioBuffer := audioContext.Call("createBuffer", sfx.channels, len(sample)*sfx.channels,
+		sfx.sampleRate*float32(sfx.channels*sfx.size))
+
+	leftChannel := audioBuffer.Call("getChannelData", 0)
+	rightChannel := audioBuffer.Call("getChannelData", 1)
+
+	// gain of audio output is too high for us so we directly reduce the gain on the samples
+	const gain = 0.01
+
+	for i := range sample {
+		idx := i * 2
+		leftChannel.SetIndex(idx, (float64(sample[i])-128.0)/128.0*gain)
+		rightChannel.SetIndex(idx+1, (float64(sample[i])-128.0)/128.0*gain)
+	}
+
+	source := audioContext.Call("createBufferSource")
+	source.Set("buffer", audioBuffer)
+
+	// connect directly to audio output
+	source.Call("connect", audioContext.Get("destination"))
+	source.Call("start", 0)
 }
 
 func main() {
-	ebiten.SetWindowTitle("TIA Audio")
-	ebiten.SetWindowDecorated(false)
+	js.Global().Set("initialise", js.FuncOf(initialise))
+	js.Global().Set("updateSamples", js.FuncOf(updateSamples))
 
-	em, err := newEmulator()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = ebiten.RunGame(em)
-	if err != nil {
-		log.Fatal(err)
-	}
+	select {}
 }
