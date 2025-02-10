@@ -6,23 +6,32 @@
 	<link rel="stylesheet" href="style.css">
 </head>
 <body>
-	<div id="playback"></div>
-	<div>
-		<button onclick="updateSamples()">Update Samples</button>
-	</div>
-	<textarea id="json" rows="20" cols="80"></textarea>
 	<script src="wasm_exec.js"></script>
 	<script>
+		function updateSamplesUsingTextArea() {
+			let json = document.getElementById("json").value;
+	        if (typeof window.updateSamples === "function") {
+				window.updateSamples(json);
+			} else {
+				console.error("updateSamples() undefined");
+			}
+		}
+
 		const go = new Go();
 		WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(result => {
 			go.run(result.instance);
 
-	        if (typeof window.initialise === "function") {
-				window.initialise();
+	        if (typeof window.initialiseWithExampleJSON === "function") {
+				window.initialiseWithExampleJSON();
 			} else {
-				console.error("initialise() undefined");
+				console.error("initialiseWithExampleJSON() undefined");
 			}
 		});
 	</script>
+	<div id="userFeedback"></div>
+	<div>
+		<button onclick="updateSamplesUsingTextArea()">Update Samples</button>
+	</div>
+	<textarea id="json" rows="20" cols="80"></textarea>
 </body>
 </html>

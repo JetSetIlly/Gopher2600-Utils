@@ -21,7 +21,7 @@ type soundEffectsJson struct {
 }
 
 type tonesJson struct {
-	Control   int `json:"channel"`
+	Control   int `json:"control"`
 	Volume    int `json:"volume"`
 	Frequency int `json:"frequency"`
 }

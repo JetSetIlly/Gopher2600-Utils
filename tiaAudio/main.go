@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"syscall/js"
+	"time"
 )
 
 //go:embed "aliens2600-sounds.json"
@@ -14,50 +15,63 @@ var aliensExample []byte
 // results of parsing
 var sfx soundEffects
 
-func initialise(this js.Value, args []js.Value) interface{} {
+func initialiseWithExampleJSON(this js.Value, args []js.Value) interface{} {
+	if len(args) > 0 {
+		log.Printf("tiaAudio: too many arguments to initialiseWithExampleJSON()")
+		return nil
+	}
+
 	textarea := js.Global().Get("document").Call("getElementById", "json")
 	if textarea.IsNull() || textarea.IsUndefined() {
 		return nil
 	}
 	textarea.Set("value", string(aliensExample))
 
-	updateSamples(this, args)
+	content := js.ValueOf(string(aliensExample))
+	updateSamples(this, []js.Value{content})
 	return nil
 }
 
 func updateSamples(this js.Value, args []js.Value) interface{} {
-	textarea := js.Global().Get("document").Call("getElementById", "json")
-	if textarea.IsNull() || textarea.IsUndefined() {
+	if len(args) < 1 {
+		log.Printf("tiaAudio: updateSamples() called with no json data")
+		return nil
+	} else if len(args) > 1 {
+		log.Printf("tiaAudio: too many arguments to updateSamples()")
 		return nil
 	}
+	content := args[0].String()
 
-	content := textarea.Get("value").String()
+	addMessage("emulating...")
+	startTime := time.Now()
 
 	var err error
 	sfx, err = parseJson([]byte(content))
 	if err != nil {
-		log.Printf(err.Error())
-		addError(err)
+		log.Printf("tiaAudio: %s", err.Error())
+		addMessage(err.Error())
 		return nil
 	}
 
-	log.Printf("name of game: %s", sfx.gameName)
-	log.Printf("number of samples: %d", len(sfx.data))
+	log.Printf("tiaAudio: emulation time %s", time.Since(startTime))
+	log.Printf("tiaAudio: name of game: %s", sfx.gameName)
+	log.Printf("tiaAudio: number of samples: %d", len(sfx.data))
+
 	addButtons()
 
 	return nil
 }
 
-func addError(err error) {
-	contentDiv := js.Global().Get("document").Call("getElementById", "playback")
+func addMessage(msg string) {
+	contentDiv := js.Global().Get("document").Call("getElementById", "userFeedback")
 	if contentDiv.IsNull() || contentDiv.IsUndefined() {
 		return
 	}
-	contentDiv.Set("innerHTML", err.Error())
+	contentDiv.Set("innerHTML", msg)
 }
 
 func addButtons() {
-	contentDiv := js.Global().Get("document").Call("getElementById", "playback")
+	contentDiv := js.Global().Get("document").Call("getElementById", "userFeedback")
 	if contentDiv.IsNull() || contentDiv.IsUndefined() {
 		return
 	}
@@ -70,7 +84,8 @@ func addButtons() {
 		button.Set("innerHTML", name) // Set the button's text
 
 		button.Call("addEventListener", "click", js.FuncOf(func(this js.Value, p []js.Value) interface{} {
-			playSample(name)
+			n := js.ValueOf(string(name))
+			playSample(js.Undefined(), []js.Value{n})
 			return nil
 		}))
 
@@ -78,9 +93,23 @@ func addButtons() {
 	}
 }
 
-func playSample(name string) {
-	sample := sfx.data[name]
-	log.Printf("playing %s at %.2fHz for %d frames", name, sfx.sampleRate, len(sample))
+func playSample(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 {
+		log.Printf("tiaAudio: playSample() called with no sample name")
+		return nil
+	} else if len(args) > 1 {
+		log.Printf("tiaAudio: too many arguments to playSample()")
+		return nil
+	}
+	name := args[0].String()
+
+	sample, ok := sfx.data[name]
+	if !ok {
+		log.Printf("tiaAudio: unknown sample '%s'", name)
+		return nil
+	}
+
+	log.Printf("tiaAudio: playing %s at %.2fHz for %d frames", name, sfx.sampleRate, len(sample))
 
 	// Get the Web Audio API context
 	audioContext := js.Global().Get("AudioContext").New()
@@ -106,10 +135,12 @@ func playSample(name string) {
 	// connect directly to audio output
 	source.Call("connect", audioContext.Get("destination"))
 	source.Call("start", 0)
+
+	return nil
 }
 
 func main() {
-	js.Global().Set("initialise", js.FuncOf(initialise))
+	js.Global().Set("initialiseWithExampleJSON", js.FuncOf(initialiseWithExampleJSON))
 	js.Global().Set("updateSamples", js.FuncOf(updateSamples))
 
 	select {}
