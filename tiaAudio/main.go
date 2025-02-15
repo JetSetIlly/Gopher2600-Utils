@@ -109,6 +109,13 @@ func playSample(this js.Value, args []js.Value) interface{} {
 		return nil
 	}
 
+	// check length of sample. if it's zero teh call to createBuffer in the
+	// audio context will cause a panic
+	if len(sample) == 0 {
+		log.Printf("tiaAudio: sample '%s' has no tones", name)
+		return nil
+	}
+
 	log.Printf("tiaAudio: playing %s at %.2fHz for %d frames", name, sfx.sampleRate, len(sample))
 
 	// Get the Web Audio API context
