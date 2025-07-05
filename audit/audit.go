@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/jetsetilly/gopher2600-utils/audit/auditors"
 	"github.com/jetsetilly/gopher2600/archivefs"
@@ -38,13 +39,28 @@ func (aud *audit) run(pth string) error {
 		return err
 	}
 
+	// for presentation purposes we want to cut the path from the audited ROM
+	// file. what we consider to the prefix depends on whether the pth parameter
+	// is a directory or a file
+	var prefix string
+
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		prefix = pth
+	} else {
+		prefix = filepath.Base(pth)
+	}
+
 	var afs archivefs.Path
 	defer afs.Close()
 
 	auditResult := func(loader cartridgeloader.Loader, msg string) {
 		// cropped filename
 		fn := filepath.Clean(loader.Filename)
-		fn, _ = strings.CutPrefix(fn, pth)
+		fn, _ = strings.CutPrefix(fn, prefix)
 		fn, _ = strings.CutPrefix(fn, string(os.PathSeparator))
 
 		const filenameColumnWidth = 48
@@ -117,6 +133,9 @@ func (aud *audit) run(pth string) error {
 		return nil
 	}
 
+	// counts active audit goroutines
+	var wg sync.WaitGroup
+
 	// number of emulation slots depending on concurrency argument
 	var slots chan bool
 	if aud.concurrent {
@@ -158,10 +177,12 @@ func (aud *audit) run(pth string) error {
 			// been checked already
 			audit := auditors.Factory[aud.auditor]()
 
+			wg.Add(1)
 			slots <- true
 			go func() {
 				auditf(loader, audit)
 				<-slots
+				wg.Done()
 			}()
 			return nil
 		}
@@ -181,7 +202,15 @@ func (aud *audit) run(pth string) error {
 		return nil
 	}
 
-	return walkf(pth, 0)
+	err = walkf(pth, 0)
+	if err != nil {
+		return err
+	}
+
+	// wait until all audit goroutines are finished
+	wg.Wait()
+
+	return nil
 }
 
 func main() {
