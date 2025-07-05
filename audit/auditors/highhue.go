@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/jetsetilly/gopher2600/hardware"
-	"github.com/jetsetilly/gopher2600/hardware/television"
+	"github.com/jetsetilly/gopher2600/hardware/television/frameinfo"
 	"github.com/jetsetilly/gopher2600/hardware/television/signal"
 )
 
@@ -44,7 +44,7 @@ func (audit *highHue) Finalise(_ *strings.Builder) error {
 }
 
 // NewFrame implements the television.PixelRenderer() interface
-func (audit *highHue) NewFrame(frameInfo television.FrameInfo) error {
+func (audit *highHue) NewFrame(frameInfo frameinfo.Current) error {
 	audit.frameCt++
 	return nil
 }
@@ -61,7 +61,7 @@ func (audit *highHue) SetPixels(sig []signal.SignalAttributes, last int) error {
 	}
 
 	for i := 0; i <= last; i++ {
-		if !sig[i].VBlank && sig[i].Color != signal.VideoBlack {
+		if !sig[i].VBlank && sig[i].Color != 0x00 {
 			hue := (uint8(sig[i].Color) & 0xf0) >> 4
 			if hue == 0x0e || hue == 0x0f {
 				audit.usesHighHue = true

@@ -36,6 +36,7 @@ var definitions []func() Audit = []func() Audit{
 	func() Audit { return &coluxxCount{} },
 	func() Audit { return &highHue{} },
 	func() Audit { return &vsyncWithoutVblank{} },
+	func() Audit { return &shortVsync{} },
 }
 
 // turn definitions into the Factory

@@ -6,7 +6,7 @@ import (
 
 	"github.com/jetsetilly/gopher2600/hardware"
 	"github.com/jetsetilly/gopher2600/hardware/memory/cpubus"
-	"github.com/jetsetilly/gopher2600/hardware/television"
+	"github.com/jetsetilly/gopher2600/hardware/television/frameinfo"
 )
 
 type coluxxCount struct {
@@ -74,7 +74,7 @@ func (audit *coluxxCount) Finalise(msg *strings.Builder) error {
 }
 
 // NewFrame implements the television.FrameTrigger() interface
-func (audit *coluxxCount) NewFrame(frameInfo television.FrameInfo) error {
+func (audit *coluxxCount) NewFrame(frameInfo frameinfo.Current) error {
 	audit.frameCt++
 	return nil
 }

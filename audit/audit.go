@@ -93,7 +93,7 @@ func (aud *audit) run(pth string) error {
 			return err
 		}
 
-		err = vcs.AttachCartridge(loader, true)
+		err = vcs.AttachCartridge(loader)
 		if err != nil {
 			return err
 		}
