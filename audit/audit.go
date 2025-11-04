@@ -34,7 +34,6 @@ type audit struct {
 func (aud *audit) run(pth string) error {
 	// check path to roms argument
 	f, err := os.Open(pth)
-	defer f.Close()
 	if err != nil {
 		return err
 	}
@@ -180,7 +179,7 @@ func (aud *audit) run(pth string) error {
 			wg.Add(1)
 			slots <- true
 			go func() {
-				auditf(loader, audit)
+				_ = auditf(loader, audit)
 				<-slots
 				wg.Done()
 			}()
