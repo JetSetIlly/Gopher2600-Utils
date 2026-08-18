@@ -38,6 +38,7 @@ var definitions []func() Audit = []func() Audit{
 	func() Audit { return &vsyncWithoutVblank{} },
 	func() Audit { return &shortVsync{} },
 	func() Audit { return &indeterminate{} },
+	func() Audit { return &mapper{} },
 }
 
 // turn definitions into the Factory
